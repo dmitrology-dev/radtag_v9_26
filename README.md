@@ -4,7 +4,7 @@ Prompts and annotation guidelines for the LLM-assisted, change-centred annotatio
 
 This repository contains the **prompt version (v1.0.0, 25 September 2026)** used for LLM-generated annotations in:
 
-> Sushko D, Sandmann S, Bickmann L, Behme D, Pech M, Varghese J. Annotating Disease Progression in Multimodal Longitudinal Radiology Reports: An Integrated RadTag Platform Using Open-Source LLMs. Manuscript submitted to Medical Informatics Europe (MIE) 2027, Tallinn, Estonia.
+> Sushko D, Sandmann S, Bickmann L, Behme D, Pech M, Varghese J. Annotating Disease Progression in Multimodal Longitudinal Radiology Reports: An Integrated RadTag Platform Using Open-Weight LLMs. Manuscript submitted to Medical Informatics Europe (MIE) 2027, Tallinn, Estonia.
 
 ## Contents
 
@@ -27,7 +27,7 @@ All output values are in German and use the controlled vocabulary defined in the
 
 ## Model and settings
 
-The same prompts were used with the following open-source models:
+The same prompts were used with the following open-weight models:
 
 - "Gemma4:31b-it"
 - "Qwen3.8-27b"
