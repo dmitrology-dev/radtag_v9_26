@@ -12,8 +12,6 @@ This repository contains the **prompt version (v1.0.0, 25 September 2026)** used
 |---|---|
 | `annotation_guidelines_v1.0.pdf` | Annotation scheme: annotation levels, attributes, controlled vocabulary, aggregation rules, examples |
 | `prompts/prompts_v1.0.py` | System prompt and field-specific prompts, exactly as used for pre-annotation |
-| `CITATION.cff` | Citation metadata |
-| `LICENSE` | License (CC BY 4.0) |
 
 ## Annotation levels
 
