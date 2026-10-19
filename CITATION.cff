@@ -1,0 +1,8 @@
+cff-version: 1.1.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: Sushko
+  given-names: Dmitry
+title:RadTag (v9.26): v1.0.0 - Prompts and annotation guidelines used for the MIE 2027 submission
+version: v1.0.0
+date-released: 2026-10-19
