@@ -467,3 +467,28 @@ _DEFAULT_PROMPT_REPORT_FOLLOWUP = (
     "{next_lab_date}):\n{next_labs}\n\n"
     "Predicted Befundbezogene Annotation:"
 )
+
+
+# Public, stable aliases for the current package API.
+SYSTEM = _DEFAULT_SYSTEM
+PROMPT_REPORT = _DEFAULT_PROMPT_REPORT
+PROMPT_INTERVAL = _DEFAULT_PROMPT_INTERVAL
+PROMPT_GLOBAL = _DEFAULT_PROMPT_GLOBAL
+
+# Optional prediction (follow-up) prompts.  These outputs are predictions,
+# not annotations.
+SYSTEM_FOLLOWUP = _DEFAULT_SYSTEM_FOLLOWUP
+PROMPT_INTERVAL_FOLLOWUP = _DEFAULT_PROMPT_INTERVAL_FOLLOWUP
+PROMPT_REPORT_FOLLOWUP = _DEFAULT_PROMPT_REPORT_FOLLOWUP
+
+__version__ = "1.1.0"
+
+__all__ = [
+    "SYSTEM",
+    "PROMPT_REPORT",
+    "PROMPT_INTERVAL",
+    "PROMPT_GLOBAL",
+    "SYSTEM_FOLLOWUP",
+    "PROMPT_INTERVAL_FOLLOWUP",
+    "PROMPT_REPORT_FOLLOWUP",
+]
