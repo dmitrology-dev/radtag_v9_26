@@ -21,7 +21,6 @@ Version v1.0.0 was used in:
 | `prompts/prompts_v1.0.py` | System prompt and field-specific prompts v1.0.0, exactly as used for the MIE 2027 evaluation |
 | `annotation_guidelines_v1.1.pdf` | Annotation scheme v1.1.0: annotation levels, attributes, controlled vocabulary, aggregation rules, examples |
 | `prompts/prompts_v1.1.py` | System prompt and field-specific prompts v1.1.0 |
-| `prompts/prompts_v1.0_to_v1.1.diff` | Line-by-line changes of the prompts from v1.0.0 to v1.1.0 |
 | `CITATION.cff` | Citation metadata |
 | `LICENSE` | License (CC BY 4.0) |
 
