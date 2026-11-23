@@ -21,6 +21,9 @@ Version v1.0.0 was used in:
 | `prompts/prompts_v1.0.py` | System prompt and field-specific prompts v1.0.0, exactly as used for the MIE 2027 evaluation |
 | `annotation_guidelines_v1.1.pdf` | Annotation scheme v1.1.0: annotation levels, attributes, controlled vocabulary, aggregation rules, examples |
 | `prompts/prompts_v1.1.py` | System prompt and field-specific prompts v1.1.0 |
+| `prompts/prompts_v1.0_to_v1.1.diff` | Line-by-line changes of the prompts from v1.0.0 to v1.1.0 |
+| `CITATION.cff` | Citation metadata |
+| `LICENSE` | License (CC BY 4.0) |
 
 ## Annotation levels
 
@@ -34,7 +37,7 @@ Each patient trajectory is annotated on three levels, each with its own prompt:
 
 All output values are in German and use the controlled vocabulary defined in the guidelines. Laboratory values serve as supporting evidence only and never establish a radiological change by themselves.
 
-The LLM receives only the free text of the reports (with dates) and, where available, laboratory values; no structured metadata such as index disease, modality or reference examination is passed. The inputs of v1.1.0 are identical to those of v1.0.0, except that the laboratory values of the following time point are no longer used.
+The LLM receives only the free text of the reports (with dates) and, where available, laboratory values; no structured metadata such as index disease, modality or reference examination is passed. The inputs of v1.1.0 are identical to those of v1.0.0, except that the annotation prompts no longer use the laboratory values of the following time point.
 
 ## Changes in v1.1.0
 
@@ -51,7 +54,13 @@ The LLM receives only the free text of the reports (with dates) and, where avail
 | Interventional reports treated as events; explicit comparisons stated in the current report used when the preceding report is not comparable | Extension to complete trajectories with mixed modalities |
 | New values: “Erstbeschreibung” (finding status), “Nicht beurteilbar” (direction of change), “Kein Vergleich möglich” and “Intervention” (change labels) | First examinations, events and non-comparable intervals |
 | Finding complexes with examples for bronchial carcinoma; consistent definitions of the overall status (state at the end of the trajectory) | Mixed changes; contradictory definition of “Progredient” in v1.0.0 |
-| Removal of the fallback mode for missing current reports and of the laboratory values of the following time point | Generated predictions instead of annotations; future information in annotations used as training data |
+| Prediction (fallback) mode and laboratory values of the following time point removed from the annotation prompts and provided as a separate, optional prediction mode | Predictions mixed with annotations; future information in annotations used as training data |
+
+## Optional prediction mode
+
+Besides the annotation prompts, `prompts_v1.1.py` contains an optional prediction (follow-up) mode, comparable to the fallback mode of v1.0.0: `_DEFAULT_SYSTEM_FOLLOWUP`, `_DEFAULT_PROMPT_INTERVAL_FOLLOWUP` and `_DEFAULT_PROMPT_REPORT_FOLLOWUP`. It predicts the Interval Note or the Finding-Specific Note of the next examination from the last available report and the laboratory values, optionally including those of the following time point. The system prompt is identical to the annotation mode except for rule 1. The output uses the same fields, and the free text opens with “Vorhersage:”.
+
+The prediction mode is not part of the annotation scheme v1.1.0 and has not been evaluated. Its outputs are predictions, not annotations; they must be stored and flagged as such and must not be used as training data.
 
 ## Model and settings
 

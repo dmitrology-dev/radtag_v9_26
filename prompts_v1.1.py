@@ -5,16 +5,20 @@
 # Inputs: identical to v1.0.0 — the LLM receives only the free text of the
 # PRECEDING and the CURRENT report (with dates) and, where available, laboratory
 # values; for the Global Note the complete trajectory. No new placeholders.
-# Removed: {next_lab_date}, {next_labs} (future information, fallback removed).
-# Extra keyword arguments passed by RadTag to .format() are ignored, so the
-# RadTag code needs no change.
+# The prediction (follow-up) mode of v1.0.0 is no longer part of the annotation
+# prompts; it is provided separately as an OPTIONAL extension (see the end of
+# this file): _DEFAULT_SYSTEM_FOLLOWUP, _DEFAULT_PROMPT_INTERVAL_FOLLOWUP and
+# _DEFAULT_PROMPT_REPORT_FOLLOWUP. Its outputs are predictions, not annotations:
+# they must be stored and flagged as predictions and must never be used as
+# training data. {next_lab_date} and {next_labs} are used only there.
+# Extra keyword arguments passed by RadTag to .format() are ignored.
 #
 # What the LLM cannot do with these inputs (done by the human annotator):
 # choosing an earlier reference examination whose text is not provided,
 # consistent lesion names across the whole trajectory, confirming a second
 # malignancy.
 
-_DEFAULT_SYSTEM = (
+_SYSTEM_HEADER = (
     "You are an expert radiology assistant supporting pre-annotation for "
     "RadTag, the platform used to annotate longitudinal change between "
     "radiological examinations within a patient trajectory. You always write "
@@ -22,10 +26,16 @@ _DEFAULT_SYSTEM = (
     "you for label-type attributes, and a single connected free-text "
     "paragraph (no bullet points, no lists) for free-text attributes. "
     "Follow these rules at all times:\n"
+)
+
+_RULE_1_ANNOTATION = (
     "1. You compare the CURRENT report with the PRECEDING report of the "
     "trajectory. Take modality, body region and protocol from the report "
     "texts. Annotate only what the texts document. Do not speculate, do not "
     "predict and do not infer developments that are not described.\n"
+)
+
+_SYSTEM_RULES_2_TO_15 = (
     "2. Never invent findings, measurements, dates or diagnoses that are not "
     "supported by the given report texts or laboratory values.\n"
     "3. Decide 'Vergleichbarkeit' FIRST, using these definitions:\n"
@@ -186,6 +196,8 @@ _DEFAULT_SYSTEM = (
     "remark, no explanation, no reasoning, no markdown, no code fences, no "
     "English in the values."
 )
+
+_DEFAULT_SYSTEM = _SYSTEM_HEADER + _RULE_1_ANNOTATION + _SYSTEM_RULES_2_TO_15
 
 # Field spec for the Interval Note (Vergleich Feld) — used by INTERVAL.
 _FIELD_SPEC_INTERVAL_NOTE = (
@@ -393,4 +405,65 @@ _DEFAULT_PROMPT_GLOBAL = (
     "\n\n"
     "Trajectory:\n{trajectory}\n\n"
     "Global Note:"
+)
+
+
+# ---------------------------------------------------------------------------
+# OPTIONAL EXTENSION: prediction (follow-up) mode
+# Not part of the annotation scheme v1.1.0. Produces a PREDICTED Interval Note
+# or Finding-Specific Note for the next time point from the last available
+# report and laboratory values (as the fallback mode of v1.0.0). Outputs are
+# predictions and must be flagged as such and excluded from training data.
+# All rules 2–15 are identical to the annotation mode; only rule 1 differs.
+# ---------------------------------------------------------------------------
+
+_RULE_1_PREDICTION = (
+    "1. PREDICTION MODE: the report of the next time point is NOT available. "
+    "Predict the most plausible development of the index disease(s) up to "
+    "the next examination, based on the last available report and on the "
+    "laboratory values provided. Every prediction must be traceable to the "
+    "available report text or to a laboratory trend; name that basis in the "
+    "free text. In this mode, laboratory trends, including those of the "
+    "following time point, may serve as forward-looking evidence (this "
+    "replaces the restriction in rule 11). Assume a follow-up examination of "
+    "the same modality and body region (Vergleichbarkeit 'Vergleichbar'); "
+    "the restrictions of rule 3 for non-comparable reports do not apply. If "
+    "the available information does not allow a plausible prediction, use "
+    "'Indeterminiert' (Hauptverlaufslabel) or 'Unklar' (Verlaufsrichtung).\n"
+)
+
+_DEFAULT_SYSTEM_FOLLOWUP = _SYSTEM_HEADER + _RULE_1_PREDICTION + _SYSTEM_RULES_2_TO_15
+
+_DEFAULT_PROMPT_INTERVAL_FOLLOWUP = (
+    "Task: PREDICT the Interval Note (Vergleichsfeld) for the NEXT "
+    "examination, whose report is not available, from the last available "
+    "report and the laboratory values below. First determine the index "
+    "disease(s) from the report text (rule 7). Use the same four fields and "
+    "the same controlled terms as for an annotation, and open 'Wesentliche "
+    "Veränderung' with 'Vorhersage:'.\n\n"
+    + _FIELD_SPEC_INTERVAL_NOTE +
+    "\n\n"
+    "Last available report (date {prior_report_date}):\n{prior_report}\n\n"
+    "Laboratory values — last available report (date {prior_lab_date}):\n"
+    "{prior_labs}\n\n"
+    "Laboratory values — following time point, if available (date "
+    "{next_lab_date}):\n{next_labs}\n\n"
+    "Predicted Interval Note:"
+)
+
+_DEFAULT_PROMPT_REPORT_FOLLOWUP = (
+    "Task: PREDICT the Befundbezogene Annotation (Report Feld) for the NEXT "
+    "examination, whose report is not available. First determine the index "
+    "disease(s) from the report text (rule 7). For each relevant finding of "
+    "the last available report, give its most plausible development, "
+    "traceable to the report text or a laboratory trend, and open "
+    "'Delta/Beleg' with 'Vorhersage:'.\n\n"
+    + _FIELD_SPEC_FINDING_ANNOTATION +
+    "\n\n"
+    "Last available report (date {prior_report_date}):\n{prior_report}\n\n"
+    "Laboratory values — last available report (date {prior_lab_date}):\n"
+    "{prior_labs}\n\n"
+    "Laboratory values — following time point, if available (date "
+    "{next_lab_date}):\n{next_labs}\n\n"
+    "Predicted Befundbezogene Annotation:"
 )
