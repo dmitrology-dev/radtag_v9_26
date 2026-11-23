@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use these prompts or annotation guidelines, please cite them as below."
+title: "RadTag: LLM prompts and annotation guidelines for change-centred annotation of longitudinal radiology reports"
+type: dataset
+version: 1.1.0
+date-released: 2026-11-23
+authors:
+  - family-names: Sushko
+    given-names: Dmitry
+    affiliation: "Institute of Medical Data Science / University Clinic for Radiology and Nuclear Medicine, University Medicine Magdeburg"
+license: CC-BY-4.0
+repository-code: "https://github.com/dmitrology-dev/radtag_v9_26"
+keywords:
+  - radiology reports
+  - annotation guidelines
+  - large language models
+  - longitudinal imaging
+  - RadTag
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.23468130
+    description: "DOI of v1.0.0 (version used for the MIE 2027 submission)"
