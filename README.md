@@ -7,7 +7,7 @@ Prompts and annotation guidelines for the LLM-assisted, change-centred annotatio
 | Version | Date | Purpose |
 |---|---|---|
 | **v1.0.0** | 25 September 2026 | Prompts and guidelines used for the LLM-generated annotations in the MIE 2027 submission (see below). Unchanged in this repository. |
-| **v1.1.0** | 23 November 2026 | Revision based on the error analysis of the MIE 2027 evaluation and extension from report pairs to complete patient trajectories. Used for the pre-annotation of complete trajectories (HCC, bronchial carcinoma). |
+| **v1.1.0** | 26 November 2026 | Revision based on the error analysis of the MIE 2027 evaluation and extension from report pairs to complete patient trajectories. Used for the pre-annotation of complete trajectories (HCC, bronchial carcinoma). |
 
 Version v1.0.0 was used in:
 
@@ -21,6 +21,7 @@ Version v1.0.0 was used in:
 | `annotation_guidelines_v1.1.pdf` | Annotation scheme v1.1.0: annotation levels, attributes, controlled vocabulary, aggregation rules, examples |
 | `radtag_prompts/` | Installable Python package containing the prompts under stable names |
 | `radtag_prompts/v1_0.py` | System prompt and field-specific prompts v1.0.0, exactly as used for the MIE 2027 evaluation |
+| `radtag_prompts/v1_1.py` | System prompt and field-specific prompts v1.1.0, including the optional prediction mode |
 | `pyproject.toml` | Package metadata for `pip install .` |
 | `CITATION.cff` | Citation metadata |
 | `LICENSE` | License (CC BY 4.0) |
@@ -55,13 +56,15 @@ Each patient trajectory is annotated on three levels, each with its own prompt:
 
 | Level | RadTag field | Input | Output |
 |---|---|---|---|
-| **Interval Note** | Vergleich | Preceding and current report, laboratory values | Comparability, overall interval label, change labels, essential change (free text) |
-| **Finding-Specific Note** | Report (Befundbezogene Annotation) | Preceding and current report, laboratory values | Per finding: entity, location, finding status, direction of change, changed feature, delta/evidence |
+| **Interval Note** | Vergleich | All preceding reports and the current report, laboratory values up to the current examination | Comparability, overall interval label, change labels, essential change (free text) |
+| **Finding-Specific Note** | Report (Befundbezogene Annotation) | All preceding reports and the current report, laboratory values up to the current examination | Per finding: entity, location, finding status, direction of change, changed feature, delta/evidence |
 | **Global Note** | Gesamt | Complete trajectory of reports and laboratory values | Overall status, context (free text) |
 
 All output values are in German and use the controlled vocabulary defined in the guidelines. Laboratory values serve as supporting evidence only and never establish a radiological change by themselves.
 
-The LLM receives only the free text of the reports (with dates) and, where available, laboratory values; no structured metadata such as index disease, modality or reference examination is passed. The inputs of v1.1.0 are identical to those of v1.0.0, except that the annotation prompts no longer use the laboratory values of the following time point.
+The LLM receives only the free text of the reports (with dates) and, where available, laboratory values; no structured metadata such as index disease, modality or reference examination is passed. In v1.1.0, the Interval and Finding-Specific prompts receive all preceding reports of the trajectory, as in clinical reading, and the LLM selects the reference examination among them; reports and laboratory values after the current examination are never passed. The annotation prompts no longer use the laboratory values of the following time point.
+
+Placeholders (Python `str.format`): `{prior_reports}`, `{current_report_date}`, `{current_report}` and `{labs}` for `PROMPT_INTERVAL` and `PROMPT_REPORT`; `{trajectory}` for `PROMPT_GLOBAL`; `{prior_reports}`, `{labs}`, `{next_lab_date}` and `{next_labs}` for the prediction prompts. Extra keyword arguments are ignored; missing ones raise a `KeyError`.
 
 ## Changes in v1.1.0
 
@@ -75,14 +78,14 @@ The LLM receives only the free text of the reports (with dates) and, where avail
 | The impression (Beurteilung) takes precedence over the description (Befund); new change label “Befundinterne Diskrepanz” | MIE limitation: contradictions between findings and impression |
 | Orientation thresholds for relevant change (RECIST 1.1, mRECIST/LI-RADS Treatment Response, PERCIST 1.0), subordinate to the impression | MIE limitation: stable disease difficult to assert in bronchial carcinoma |
 | Overall interval label and overall status refer to the index disease(s), determined from the reports; rules for several index diseases | Undefined in v1.0.0 |
-| Interventional reports treated as events; explicit comparisons stated in the current report used when the preceding report is not comparable | Extension to complete trajectories with mixed modalities |
+| All preceding reports are passed as context, and the LLM selects the reference examination (most recent preceding report of the same region with a suitable modality); interventional reports treated as events | Extension to complete trajectories with mixed modalities; comparison with only the directly preceding report is often not meaningful |
 | New values: “Erstbeschreibung” (finding status), “Nicht beurteilbar” (direction of change), “Kein Vergleich möglich” and “Intervention” (change labels) | First examinations, events and non-comparable intervals |
 | Finding complexes with examples for bronchial carcinoma; consistent definitions of the overall status (state at the end of the trajectory) | Mixed changes; contradictory definition of “Progredient” in v1.0.0 |
 | Prediction (fallback) mode and laboratory values of the following time point removed from the annotation prompts and provided as a separate, optional prediction mode | Predictions mixed with annotations; future information in annotations used as training data |
 
 ## Optional prediction mode
 
-Besides the annotation prompts, `radtag_prompts/v1_1.py` contains an optional prediction (follow-up) mode, comparable to the fallback mode of v1.0.0: `_DEFAULT_SYSTEM_FOLLOWUP`, `_DEFAULT_PROMPT_INTERVAL_FOLLOWUP` and `_DEFAULT_PROMPT_REPORT_FOLLOWUP`. The package exposes the same texts as `SYSTEM_FOLLOWUP`, `PROMPT_INTERVAL_FOLLOWUP` and `PROMPT_REPORT_FOLLOWUP`. It predicts the Interval Note or the Finding-Specific Note of the next examination from the last available report and the laboratory values, optionally including those of the following time point. The system prompt is identical to the annotation mode except for rule 1. The output uses the same fields, and the free text opens with “Vorhersage:”.
+Besides the annotation prompts, `radtag_prompts/v1_1.py` contains an optional prediction (follow-up) mode, comparable to the fallback mode of v1.0.0: `_DEFAULT_SYSTEM_FOLLOWUP`, `_DEFAULT_PROMPT_INTERVAL_FOLLOWUP` and `_DEFAULT_PROMPT_REPORT_FOLLOWUP`. The package exposes the same texts as `SYSTEM_FOLLOWUP`, `PROMPT_INTERVAL_FOLLOWUP` and `PROMPT_REPORT_FOLLOWUP`. It predicts the Interval Note or the Finding-Specific Note of the next examination from the available reports and laboratory values, optionally including the laboratory values of the following time point. The system prompt is identical to the annotation mode except for rule 1. The output uses the same fields, and the free text opens with “Vorhersage:”.
 
 The prediction mode is not part of the annotation scheme v1.1.0 and has not been evaluated. Its outputs are predictions, not annotations; they must be stored and flagged as such and must not be used as training data.
 
