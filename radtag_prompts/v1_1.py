@@ -2,9 +2,13 @@
 #
 # v1.0.0 (25.09.2026) was used for the MIE 2027 submission and remains unchanged.
 #
-# Inputs: identical to v1.0.0 — the LLM receives only the free text of the
-# PRECEDING and the CURRENT report (with dates) and, where available, laboratory
-# values; for the Global Note the complete trajectory. No new placeholders.
+# Inputs: the LLM receives only free text — ALL PRECEDING reports of the
+# trajectory (chronological, each with date) and the CURRENT report, plus the
+# laboratory values up to the current examination where available; for the
+# Global Note the complete trajectory. Reports or laboratory values AFTER the
+# current examination must never be passed.
+# Placeholders (Interval and Report): {prior_reports}, {current_report_date},
+# {current_report}, {labs}. Global: {trajectory}. Prediction mode: see below.
 # The prediction (follow-up) mode of v1.0.0 is no longer part of the annotation
 # prompts; it is provided separately as an OPTIONAL extension (see the end of
 # this file): _DEFAULT_SYSTEM_FOLLOWUP, _DEFAULT_PROMPT_INTERVAL_FOLLOWUP and
@@ -13,8 +17,7 @@
 # training data. {next_lab_date} and {next_labs} are used only there.
 # Extra keyword arguments passed by RadTag to .format() are ignored.
 #
-# What the LLM cannot do with these inputs (done by the human annotator):
-# choosing an earlier reference examination whose text is not provided,
+# Checked by the human annotator: the reference examination chosen by the LLM,
 # consistent lesion names across the whole trajectory, confirming a second
 # malignancy.
 
@@ -29,10 +32,20 @@ _SYSTEM_HEADER = (
 )
 
 _RULE_1_ANNOTATION = (
-    "1. You compare the CURRENT report with the PRECEDING report of the "
-    "trajectory. Take modality, body region and protocol from the report "
-    "texts. Annotate only what the texts document. Do not speculate, do not "
-    "predict and do not infer developments that are not described.\n"
+    "1. You annotate the CURRENT report against ALL PRECEDING reports of the "
+    "trajectory, as a radiologist reviews the previous reports. The change "
+    "is assessed between the current report and its REFERENCE examination: "
+    "the most recent preceding report that covers the same body region with "
+    "a modality able to depict the relevant findings (usually, but not "
+    "always, the directly preceding report). If the current report "
+    "explicitly names its comparison examination (e.g. 'Vergleich: CT vom "
+    "10.03.2025') and that report is among the preceding reports, it is the "
+    "reference. Use the older reports as context — history, earlier "
+    "descriptions and names of the same lesion, interventions, index "
+    "disease — but not as a second basis of comparison. Take modality, body "
+    "region and protocol from the report texts. Annotate only what the texts "
+    "document. Do not speculate, do not predict and do not infer "
+    "developments that are not described.\n"
 )
 
 _SYSTEM_RULES_2_TO_15 = (
@@ -51,17 +64,20 @@ _SYSTEM_RULES_2_TO_15 = (
     "   - Nicht vergleichbar: a reliable assessment of change is impossible, "
     "e.g. different body region, a modality that cannot depict the relevant "
     "findings (e.g. NM whole-body scintigraphy vs. MR liver, XA vs. CT "
-    "chest), or one of the two reports documents an intervention (rule 13).\n"
+    "chest), no preceding report covers the region, or the current report "
+    "documents an intervention (rule 13).\n"
     "   - Nicht beurteilbar: one of the reports lacks assessable content "
     "(e.g. technically insufficient examination, report without findings).\n"
-    "   DOCUMENTED COMPARISON: if the preceding report is 'Nicht vergleichbar' "
+    "   Vergleichbarkeit is decided between the current report and its "
+    "reference (rule 1).\n"
+    "   DOCUMENTED COMPARISON: if no preceding report is a suitable reference "
     "but the CURRENT report itself explicitly compares with an earlier "
-    "examination of the same region (e.g. 'im Vergleich zur CT vom "
-    "10.03.2025'), use that comparison: Vergleichbarkeit = 'Eingeschränkt "
-    "vergleichbar' (the earlier report is not available to you), take the "
-    "change from the comparative statements of the current report (impression "
-    "first, rule 12), and name the compared examination and its date in "
-    "'Wesentliche Veränderung' (e.g. 'Im Vergleich zur CT vom 10.03.2025 …').\n"
+    "examination that is not among the preceding reports (e.g. 'im Vergleich "
+    "zur auswärtigen CT vom 10.03.2025'), use that comparison: "
+    "Vergleichbarkeit = 'Eingeschränkt vergleichbar' (that report is not "
+    "available to you), take the change from the comparative statements of "
+    "the current report (impression first, rule 12), and name the compared "
+    "examination and its date in 'Wesentliche Veränderung'.\n"
     "   Otherwise, if Vergleichbarkeit is 'Nicht vergleichbar' or 'Nicht "
     "beurteilbar', no trajectory is assigned: Hauptverlaufslabel = 'Nicht "
     "beurteilbar', no change labels other than 'Kein Vergleich möglich', "
@@ -81,7 +97,7 @@ _SYSTEM_RULES_2_TO_15 = (
     "per finding (not a formal RECIST/mRECIST response assessment):\n"
     "   - Solid tumours, metastases and lymph nodes (RECIST 1.1): increase of "
     "at least 20 % AND at least 5 mm (longest diameter; short axis for lymph "
-    "nodes) compared with the preceding examination -> relevant increase; "
+    "nodes) compared with the reference -> relevant increase; "
     "decrease of at least 30 % -> relevant decrease; anything in between -> "
     "no relevant change; an unequivocal new lesion -> progression.\n"
     "   - HCC after locoregional therapy (mRECIST / LI-RADS Treatment "
@@ -103,7 +119,7 @@ _SYSTEM_RULES_2_TO_15 = (
     "change cannot be determined or different sources conflict (e.g. two "
     "modalities on the same day); a conflict between impression and "
     "description of the same report is resolved by the impression (rule "
-    "12). A finding that was only suspected in the preceding report and is "
+    "12). A finding that was only suspected in the reference report and is "
     "now clearly smaller or explicitly absent is 'Rückläufig'/'Nicht mehr "
     "nachweisbar'; a suspected finding that clearly increased is "
     "'Zunehmend'. Keep the hedge in the entity and the free text (e.g. "
@@ -144,11 +160,12 @@ _SYSTEM_RULES_2_TO_15 = (
     "Zuordnung' and state this in the free text. A new lesion suspicious of "
     "malignancy still counts as progression, but never attribute it to one "
     "disease by assumption.\n"
-    "9. Set 'Mögliche Nachsorgelücke' when the interval between the compared "
-    "examinations clearly exceeds the usual follow-up interval for the "
-    "entity (rule of thumb: more than 12 months for oncologic surveillance, "
-    "unless stated otherwise); name the gap length in 'Wesentliche "
-    "Veränderung'.\n"
+    "9. Set 'Mögliche Nachsorgelücke' when the interval between the "
+    "reference and the current examination clearly exceeds the usual "
+    "follow-up interval for the entity (rule of thumb: more than 12 months "
+    "for oncologic surveillance, unless stated otherwise) and no preceding "
+    "report of the same region lies in between; name the gap length in "
+    "'Wesentliche Veränderung'.\n"
     "10. Treat several modalities documented on the same day for the same "
     "finding as ONE entry; present their values side by side without "
     "ranking one modality over the other. If they conflict, use 'Unklar'/"
@@ -160,11 +177,12 @@ _SYSTEM_RULES_2_TO_15 = (
     "Hauptverlaufslabel, a Verlaufsrichtung or a Gesamtstatus. Clinical "
     "history, the indication and examinations merely mentioned in the "
     "current report are context, not evidence of change (except for an "
-    "explicit comparison, rule 3). If an intervention or a change of therapy "
-    "lies between the laboratory values and the examination, the laboratory "
-    "date is long before the examination, or after it, do not use the "
-    "values to qualify the change. If no laboratory values are provided, "
-    "ignore them silently.\n"
+    "explicit comparison, rule 3). Use only laboratory values up to the "
+    "date of the current examination. If an intervention or a change of "
+    "therapy lies between the laboratory values and the examination, or the "
+    "laboratory date is long before the examination, do not use the values "
+    "to qualify the change. If no laboratory values are provided, ignore "
+    "them silently.\n"
     "12. The impression (Beurteilung) is the decisive part of a report. If "
     "the impression contradicts the report's own description (Befund) or "
     "measurements (e.g. impression 'größenkonstant' despite a documented "
@@ -180,12 +198,12 @@ _SYSTEM_RULES_2_TO_15 = (
     "SIRT, RFA/MWA, brachytherapy, embolisation, image-guided biopsy or "
     "drainage), regardless of modality, is an EVENT, not a basis for "
     "assessing disease change. If the CURRENT report is an intervention "
-    "report, follow the EVENT instructions of the task. If the PRECEDING "
-    "report is an intervention report, it is 'Nicht vergleichbar'; use a "
-    "documented comparison of the current report if there is one (rule 3) "
-    "and name the intervention as context (e.g. 'nach TACE vom 12.03.2025'). "
-    "Interventions mentioned in the current report are named as context in "
-    "the same way.\n"
+    "report, follow the EVENT instructions of the task. An intervention "
+    "report is never the reference: if the directly preceding report is an "
+    "intervention report, the reference is the last diagnostic report of the "
+    "region before it, and the intervention is named as context (e.g. 'nach "
+    "TACE vom 12.03.2025'). Interventions mentioned in the reports are named "
+    "as context in the same way.\n"
     "14. Write every free-text field ('Wesentliche Veränderung', "
     "'Delta/Beleg', 'Kontext') as ONE connected German paragraph, linking "
     "sub-aspects with connectors such as 'demgegenüber' — never as a bulleted "
@@ -227,9 +245,10 @@ _FIELD_SPEC_INTERVAL_NOTE = (
     "where relevant, supporting laboratory values; default to 'Keine "
     "wesentliche Intervallveränderung.' if nothing relevant changed; if "
     "'Mögliche Nachsorgelücke' is used, open the paragraph by naming the "
-    "length of the gap; for a documented comparison (rule 3), name the "
-    "compared examination and its date; if not comparable, state briefly "
-    "why; if there are several index diseases, open with one bracket tag per "
+    "length of the gap; if the reference is not the directly preceding "
+    "report, or for a documented comparison (rule 3), name the reference "
+    "examination and its date; if not comparable, state briefly why; if "
+    "there are several index diseases, open with one bracket tag per "
     "index disease (rule 8)>"
 )
 
@@ -246,15 +265,15 @@ _FIELD_SPEC_FINDING_ANNOTATION = (
     "Entität: <type of finding WITHOUT location, e.g. 'HCC-Herd', "
     "'Lymphknotenmetastase'; put any suspicion here, e.g. 'HCC-verdächtige "
     "Läsion'; if the report numbers lesions, include the number, e.g. "
-    "'HCC-Herd 1'; describe the same lesion with the same name in both "
+    "'HCC-Herd 1'; keep the name used for the same lesion in the preceding "
     "reports>\n"
     "Lokalisation: <anatomical location only, e.g. 'Lebersegment VIII'>\n"
     "Befundstatus: <one of: Erstbeschreibung / Neu aufgetreten / "
     "Persistierend / Nicht mehr nachweisbar / Nicht beurteilbar. "
-    "'Erstbeschreibung' if there is no preceding report, or the preceding "
-    "report did not cover the region of the finding; 'Neu aufgetreten' only "
-    "if a comparable preceding examination covered the region without the "
-    "finding, or the current report explicitly calls the finding new; 'Nicht "
+    "'Erstbeschreibung' if there is no preceding report, or no preceding "
+    "report covered the region of the finding; 'Neu aufgetreten' only if "
+    "the reference covered the region without the finding, or the current "
+    "report explicitly calls the finding new; 'Nicht "
     "mehr nachweisbar' requires an explicit statement of absence in the "
     "current report and coverage of the region>\n"
     "Verlaufsrichtung: <one of: Unverändert / Zunehmend / Rückläufig / "
@@ -315,9 +334,10 @@ _FIELD_SPEC_GLOBAL = (
 
 _DEFAULT_PROMPT_INTERVAL = (
     "Task: annotate the Interval Note (Vergleichsfeld) for the CURRENT "
-    "radiology report below, compared with the PRECEDING report. First "
-    "determine the index disease(s) from the report texts (rule 7).\n\n"
-    "- STANDARD CASE: compare the CURRENT report with the PRECEDING report. "
+    "radiology report below. Review ALL preceding reports, determine the "
+    "index disease(s) (rule 7) and select the reference examination "
+    "(rule 1).\n\n"
+    "- STANDARD CASE: compare the CURRENT report with its reference. "
     "Decide Vergleichbarkeit first (rule 3), then extract only the essential "
     "change(s) of the index disease(s) — do not restate unchanged detail and "
     "do not speculate about developments that are not documented.\n"
@@ -328,66 +348,60 @@ _DEFAULT_PROMPT_INTERVAL = (
     "applicable). 'Wesentliche Veränderung' names the procedure, the treated "
     "lesion(s) or region and the documented technical result; additional "
     "peri-interventional findings may be named in the same paragraph.\n"
-    "- NOT COMPARABLE: if the preceding report is not comparable (different "
-    "body region, intervention report, unsuitable modality), use a "
-    "documented comparison of the current report if there is one (rule 3). "
-    "If there is none: Vergleichbarkeit = 'Nicht vergleichbar', "
-    "Hauptverlaufslabel = 'Nicht beurteilbar', Veränderungslabel = 'Kein "
-    "Vergleich möglich', and 'Wesentliche Veränderung' states briefly why "
-    "(e.g. 'Kein Vergleich möglich, vorangehende Untersuchung betrifft eine "
-    "andere Körperregion.').\n"
+    "- NO REFERENCE: if no preceding report covers the body region of the "
+    "current examination, use a documented comparison of the current report "
+    "if there is one (rule 3). If there is none: Vergleichbarkeit = 'Nicht "
+    "vergleichbar', Hauptverlaufslabel = 'Nicht beurteilbar', "
+    "Veränderungslabel = 'Kein Vergleich möglich', Wesentliche Veränderung = "
+    "'Keine vergleichbare Voruntersuchung der Region vorliegend.'\n"
     "- PARTIAL OVERLAP: if the current examination covers the region of the "
-    "preceding one only partly or covers additional regions (e.g. CT "
+    "reference only partly or covers additional regions (e.g. CT "
     "thorax/abdomen after CT thorax), compare the overlapping region as "
     "usual (typically 'Eingeschränkt vergleichbar'); findings in regions not "
-    "covered by the preceding examination are not 'Neuer Befund' unless the "
+    "covered by any preceding report are not 'Neuer Befund' unless the "
     "current report calls them new.\n\n"
     + _FIELD_SPEC_INTERVAL_NOTE +
     "\n\n"
-    "Preceding report (date {prior_report_date}):\n{prior_report}\n\n"
+    "Preceding reports (chronological, each with date):\n{prior_reports}\n\n"
     "Current report (date {current_report_date}):\n{current_report}\n\n"
-    "Supporting laboratory values — preceding (date {prior_lab_date}):\n"
-    "{prior_labs}\n\n"
-    "Supporting laboratory values — current (date {current_lab_date}):\n"
-    "{current_labs}\n\n"
+    "Supporting laboratory values up to the current examination (with "
+    "dates):\n{labs}\n\n"
     "Interval Note:"
 )
 
 _DEFAULT_PROMPT_REPORT = (
     "Task: annotate the Befundbezogene Annotation (Report Feld) — the "
     "per-finding, finding-level annotation — for the CURRENT radiology "
-    "report below. First determine the index disease(s) from the report "
-    "texts (rule 7).\n\n"
+    "report below. Review ALL preceding reports, determine the index "
+    "disease(s) (rule 7) and select the reference examination (rule 1).\n\n"
     "- STANDARD CASE: for each relevant finding, compare its description in "
-    "the CURRENT report with the PRECEDING report and annotate its status "
-    "and direction of change as specified below. Findings of the preceding "
-    "report that are no longer mentioned also get a block (Befundstatus "
-    "'Nicht beurteilbar', rule 4).\n"
+    "the CURRENT report with the reference and annotate its status and "
+    "direction of change as specified below, keeping the lesion names used "
+    "in the preceding reports. Findings of the reference that are no longer "
+    "mentioned also get a block (Befundstatus 'Nicht beurteilbar', "
+    "rule 4).\n"
     "- EVENT CASE: if the CURRENT report documents an interventional "
     "procedure (rule 13), create one block per treated lesion: Befundstatus "
     "as documented (usually 'Persistierend'), Verlaufsrichtung = 'Nicht "
     "beurteilbar', Verändertes Merkmal = 'Kein spezifisches Merkmal', and "
     "'Delta/Beleg' names the procedure and the documented technical result.\n"
-    "- FIRST REPORT: if the 'Preceding report' section is EMPTY, annotate "
+    "- FIRST REPORT: if the 'Preceding reports' section is EMPTY, annotate "
     "each relevant finding of the current report with Befundstatus = "
     "'Erstbeschreibung', Verlaufsrichtung = 'Nicht beurteilbar', Verändertes "
     "Merkmal = 'Kein spezifisches Merkmal', and describe the finding as "
     "documented (with measurements) in 'Delta/Beleg'.\n"
-    "- NOT COMPARABLE: if the preceding report is not comparable (rule 3) "
-    "and the current report contains no documented comparison, set "
-    "Verlaufsrichtung = 'Nicht beurteilbar' for all findings; findings in a "
-    "region the preceding examination did not cover receive "
-    "'Erstbeschreibung'. If the current report contains a documented "
+    "- NO REFERENCE: if no preceding report covers the region of a finding "
+    "and the current report contains no documented comparison (rule 3), the "
+    "finding receives Befundstatus = 'Erstbeschreibung' and Verlaufsrichtung "
+    "= 'Nicht beurteilbar'. If the current report contains a documented "
     "comparison, take status and direction from its comparative "
     "statements.\n\n"
     + _FIELD_SPEC_FINDING_ANNOTATION +
     "\n\n"
-    "Preceding report (date {prior_report_date}):\n{prior_report}\n\n"
+    "Preceding reports (chronological, each with date):\n{prior_reports}\n\n"
     "Current report (date {current_report_date}):\n{current_report}\n\n"
-    "Supporting laboratory values — preceding (date {prior_lab_date}):\n"
-    "{prior_labs}\n\n"
-    "Supporting laboratory values — current (date {current_lab_date}):\n"
-    "{current_labs}\n\n"
+    "Supporting laboratory values up to the current examination (with "
+    "dates):\n{labs}\n\n"
     "Befundbezogene Annotation:"
 )
 
@@ -411,8 +425,8 @@ _DEFAULT_PROMPT_GLOBAL = (
 # ---------------------------------------------------------------------------
 # OPTIONAL EXTENSION: prediction (follow-up) mode
 # Not part of the annotation scheme v1.1.0. Produces a PREDICTED Interval Note
-# or Finding-Specific Note for the next time point from the last available
-# report and laboratory values (as the fallback mode of v1.0.0). Outputs are
+# or Finding-Specific Note for the next time point from the available reports
+# and laboratory values (as the fallback mode of v1.0.0). Outputs are
 # predictions and must be flagged as such and excluded from training data.
 # All rules 2–15 are identical to the annotation mode; only rule 1 differs.
 # ---------------------------------------------------------------------------
@@ -420,8 +434,8 @@ _DEFAULT_PROMPT_GLOBAL = (
 _RULE_1_PREDICTION = (
     "1. PREDICTION MODE: the report of the next time point is NOT available. "
     "Predict the most plausible development of the index disease(s) up to "
-    "the next examination, based on the last available report and on the "
-    "laboratory values provided. Every prediction must be traceable to the "
+    "the next examination, based on all available reports (the last one "
+    "being the most recent state) and on the laboratory values provided. Every prediction must be traceable to the "
     "available report text or to a laboratory trend; name that basis in the "
     "free text. In this mode, laboratory trends, including those of the "
     "following time point, may serve as forward-looking evidence (this "
@@ -436,16 +450,17 @@ _DEFAULT_SYSTEM_FOLLOWUP = _SYSTEM_HEADER + _RULE_1_PREDICTION + _SYSTEM_RULES_2
 
 _DEFAULT_PROMPT_INTERVAL_FOLLOWUP = (
     "Task: PREDICT the Interval Note (Vergleichsfeld) for the NEXT "
-    "examination, whose report is not available, from the last available "
-    "report and the laboratory values below. First determine the index "
-    "disease(s) from the report text (rule 7). Use the same four fields and "
+    "examination, whose report is not available, from the available reports "
+    "and the laboratory values below. First determine the index "
+    "disease(s) from the report texts (rule 7). Use the same four fields and "
     "the same controlled terms as for an annotation, and open 'Wesentliche "
     "Veränderung' with 'Vorhersage:'.\n\n"
     + _FIELD_SPEC_INTERVAL_NOTE +
     "\n\n"
-    "Last available report (date {prior_report_date}):\n{prior_report}\n\n"
-    "Laboratory values — last available report (date {prior_lab_date}):\n"
-    "{prior_labs}\n\n"
+    "Available reports (chronological, each with date; the last one is the "
+    "most recent state):\n{prior_reports}\n\n"
+    "Laboratory values up to the last available report (with dates):\n"
+    "{labs}\n\n"
     "Laboratory values — following time point, if available (date "
     "{next_lab_date}):\n{next_labs}\n\n"
     "Predicted Interval Note:"
@@ -454,15 +469,16 @@ _DEFAULT_PROMPT_INTERVAL_FOLLOWUP = (
 _DEFAULT_PROMPT_REPORT_FOLLOWUP = (
     "Task: PREDICT the Befundbezogene Annotation (Report Feld) for the NEXT "
     "examination, whose report is not available. First determine the index "
-    "disease(s) from the report text (rule 7). For each relevant finding of "
+    "disease(s) from the report texts (rule 7). For each relevant finding of "
     "the last available report, give its most plausible development, "
     "traceable to the report text or a laboratory trend, and open "
     "'Delta/Beleg' with 'Vorhersage:'.\n\n"
     + _FIELD_SPEC_FINDING_ANNOTATION +
     "\n\n"
-    "Last available report (date {prior_report_date}):\n{prior_report}\n\n"
-    "Laboratory values — last available report (date {prior_lab_date}):\n"
-    "{prior_labs}\n\n"
+    "Available reports (chronological, each with date; the last one is the "
+    "most recent state):\n{prior_reports}\n\n"
+    "Laboratory values up to the last available report (with dates):\n"
+    "{labs}\n\n"
     "Laboratory values — following time point, if available (date "
     "{next_lab_date}):\n{next_labs}\n\n"
     "Predicted Befundbezogene Annotation:"
