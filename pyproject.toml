@@ -1,0 +1,53 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "radtag-prompts"
+version = "1.1.0"
+description = "LLM prompts and annotation guidelines for change-centred annotation of longitudinal radiology reports on the RadTag platform"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "CC-BY-4.0"
+license-files = ["LICENSE"]
+authors = [
+  { name = "Dmitry Sushko", email = "dmitry.sushko@med.ovgu.de" },
+]
+keywords = [
+  "radiology",
+  "annotation",
+  "llm",
+  "prompt",
+  "radtag",
+  "longitudinal",
+]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Healthcare Industry",
+  "Intended Audience :: Science/Research",
+  "Natural Language :: German",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Scientific/Engineering :: Medical Science Apps.",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/dmitrology-dev/radtag_v9_26"
+Repository = "https://github.com/dmitrology-dev/radtag_v9_26"
+Issues = "https://github.com/dmitrology-dev/radtag_v9_26/issues"
+Changelog = "https://github.com/dmitrology-dev/radtag_v9_26/commits/main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["radtag_prompts"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/radtag_prompts",
+  "/README.md",
+  "/LICENSE",
+  "/CITATION.cff",
+  "/annotation_guidelines_v1.0.pdf",
+  "/annotation_guidelines_v1.1.pdf",
+]

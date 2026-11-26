@@ -180,3 +180,21 @@ _DEFAULT_PROMPT_GLOBAL = (
     "Trajectory:\n{trajectory}\n\n"
     "Global Note:"
 )
+
+
+# Public, stable aliases.  The prompt texts above are unchanged from v1.0.0 as
+# used for the MIE 2027 evaluation; these names mirror the ones the package
+# exposes for v1.1.0 so that the older prompts can be imported the same way.
+SYSTEM = _DEFAULT_SYSTEM
+PROMPT_REPORT = _DEFAULT_PROMPT_REPORT
+PROMPT_INTERVAL = _DEFAULT_PROMPT_INTERVAL
+PROMPT_GLOBAL = _DEFAULT_PROMPT_GLOBAL
+
+__version__ = "1.0.0"
+
+__all__ = [
+    "SYSTEM",
+    "PROMPT_REPORT",
+    "PROMPT_INTERVAL",
+    "PROMPT_GLOBAL",
+]

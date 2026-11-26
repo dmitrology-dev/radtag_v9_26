@@ -18,11 +18,36 @@ Version v1.0.0 was used in:
 | File | Description |
 |---|---|
 | `annotation_guidelines_v1.0.pdf` | Annotation scheme v1.0.0, as cited in the MIE 2027 submission |
-| `prompts/prompts_v1.0.py` | System prompt and field-specific prompts v1.0.0, exactly as used for the MIE 2027 evaluation |
 | `annotation_guidelines_v1.1.pdf` | Annotation scheme v1.1.0: annotation levels, attributes, controlled vocabulary, aggregation rules, examples |
-| `prompts/prompts_v1.1.py` | System prompt and field-specific prompts v1.1.0 |
+| `radtag_prompts/` | Installable Python package containing the prompts under stable names |
+| `radtag_prompts/v1_0.py` | System prompt and field-specific prompts v1.0.0, exactly as used for the MIE 2027 evaluation |
+| `pyproject.toml` | Package metadata for `pip install .` |
 | `CITATION.cff` | Citation metadata |
 | `LICENSE` | License (CC BY 4.0) |
+
+## Python package
+
+The prompts are also available as the `radtag-prompts` package:
+
+```bash
+pip install .
+```
+
+The annotation prompts are exported as `SYSTEM`, `PROMPT_REPORT`, `PROMPT_INTERVAL` and `PROMPT_GLOBAL`. The optional prediction mode is exported as `SYSTEM_FOLLOWUP`, `PROMPT_INTERVAL_FOLLOWUP` and `PROMPT_REPORT_FOLLOWUP`.
+
+```python
+from radtag_prompts import SYSTEM, PROMPT_REPORT
+
+from radtag_prompts import (
+    SYSTEM_FOLLOWUP,
+    PROMPT_INTERVAL_FOLLOWUP,
+    PROMPT_REPORT_FOLLOWUP,
+)
+```
+
+```bash
+pip install "radtag-prompts @ git+https://github.com/dmitrology-dev/radtag_v9_26@main"
+```
 
 ## Annotation levels
 
@@ -57,7 +82,7 @@ The LLM receives only the free text of the reports (with dates) and, where avail
 
 ## Optional prediction mode
 
-Besides the annotation prompts, `prompts_v1.1.py` contains an optional prediction (follow-up) mode, comparable to the fallback mode of v1.0.0: `_DEFAULT_SYSTEM_FOLLOWUP`, `_DEFAULT_PROMPT_INTERVAL_FOLLOWUP` and `_DEFAULT_PROMPT_REPORT_FOLLOWUP`. It predicts the Interval Note or the Finding-Specific Note of the next examination from the last available report and the laboratory values, optionally including those of the following time point. The system prompt is identical to the annotation mode except for rule 1. The output uses the same fields, and the free text opens with “Vorhersage:”.
+Besides the annotation prompts, `radtag_prompts/v1_1.py` contains an optional prediction (follow-up) mode, comparable to the fallback mode of v1.0.0: `_DEFAULT_SYSTEM_FOLLOWUP`, `_DEFAULT_PROMPT_INTERVAL_FOLLOWUP` and `_DEFAULT_PROMPT_REPORT_FOLLOWUP`. The package exposes the same texts as `SYSTEM_FOLLOWUP`, `PROMPT_INTERVAL_FOLLOWUP` and `PROMPT_REPORT_FOLLOWUP`. It predicts the Interval Note or the Finding-Specific Note of the next examination from the last available report and the laboratory values, optionally including those of the following time point. The system prompt is identical to the annotation mode except for rule 1. The output uses the same fields, and the free text opens with “Vorhersage:”.
 
 The prediction mode is not part of the annotation scheme v1.1.0 and has not been evaluated. Its outputs are predictions, not annotations; they must be stored and flagged as such and must not be used as training data.
 
@@ -82,7 +107,7 @@ v1.1.0:
 
 ## License
 
-[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The full legal code is in [`LICENSE`](LICENSE).
 
 ## Contact
 
